@@ -1,7 +1,12 @@
 import nonebot
 from nonebot.adapters.onebot.v11 import Adapter
 import os
-from src.plugins.ai_chat import OllamaWalk
+import sys
+from nonebot.plugin import Plugin
+
+
+plugin: Plugin | None = nonebot.get_plugin("ai_main")
+from plugins.ai_main import OllamaWalk
 
 # 获取 bot.py 所在的目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

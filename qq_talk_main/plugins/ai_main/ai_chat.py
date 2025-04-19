@@ -8,7 +8,7 @@ from nonebot.adapters.onebot.v11 import Message, MessageEvent, Bot, GroupMessage
 from nonebot.exception import ActionFailed
 from nonebot import require
 from nonebot.rule import to_me
-from src.plugins.gpt_text import lovel_text, high_white
+from plugins.ai_main.gpt_text import lovel_text, high_white
 
 
 
