@@ -4,9 +4,10 @@ import os
 import sys
 from nonebot.plugin import Plugin
 
+from pathlib import Path
 
-plugin: Plugin | None = nonebot.get_plugin("ai_main")
-from plugins.ai_main import OllamaWalk
+
+
 
 # 获取 bot.py 所在的目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -30,4 +31,6 @@ driver.register_adapter(Adapter)
 nonebot.load_from_toml(TOML_PATH)
 
 if __name__ == "__main__":
+    plugin: Plugin | None = nonebot.get_plugin("ai_main")
+    from plugins.ai_main.ai_chat import OllamaWalk
     nonebot.run()
