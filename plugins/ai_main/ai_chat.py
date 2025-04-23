@@ -17,14 +17,9 @@ from plugins.ai_main.gpt_text import lovel_text, high_white
 ALLOWED_PRIVATE_QQ = [2740954024]
 
 
-# 喵~表情包列表，随机挑一个可爱的送给你哦~（眨眼）
-EMOJI_LIST = [
-    "[CQ:face,id=1]",  # 微笑
-    "[CQ:face,id=2]",  # 害羞
-    "[CQ:face,id=3]",  # 调皮
-    "[CQ:face,id=4]",   # 爱心
-    "[CQ:face,id=5]",    # 笑哭
-]
+
+# 表情包存储的JSON文件路径
+EMOJI_JSON_PATH = "emojis.json"
 
 # 只有群聊被@或者指定QQ私聊时触发
 chat = on_message(
@@ -40,21 +35,21 @@ class OllamaWalk:
     def __init__(self):
         # 从环境变量中读取API密钥
         self.api = os.getenv("DEEPSEEK_API_KEY", "default-key-if-not-set")
-        self.base_path = "c:/code/python/qq_talk/qq_talk/src/plugins/messages/"
+        self.talk_path = "./repository/talk/"
         # 确保目录存在呢
-        os.makedirs(self.base_path, exist_ok=True)
+        os.makedirs(self.talk_path, exist_ok=True)
         self.walk_num = 2
         self.user_name = "店长"
         self.sentence_separators = ["。", "！", "~", "？", "..."]
         # 消息记录会根据聊天对象分开存储哦~（轻笑）
         self.messages_dict = {}
         # 表情包发送概率
-        self.emoji_probability = 0.3
+        self.emoji_probability = 1
 
 
     def get_file_path(self, chat_id):
         # 以用户ID生成唯一的文件名
-        return os.path.join(self.base_path, f"messages_{chat_id}.json")
+        return os.path.join(self.talk_path, f"messages_{chat_id}.json")
 
     def load_messages(self, chat_id):
         file_path = self.get_file_path(chat_id)
@@ -127,11 +122,6 @@ class OllamaWalk:
             logger.error(f"API调用出错了呢: {e}，别怪我哦~")
             return "喵~我好像有点晕乎乎，等等我哦！"
 
-    def add_emoji(self, sentence, user_text):
-        if random.random() < self.emoji_probability:
-            emoji = random.choice(EMOJI_LIST)
-            return f"{sentence} {emoji}"
-        return sentence
 
     async def chat(self, chat_id, user_text):
         try:
@@ -173,8 +163,9 @@ async def handle_chat(bot: Bot, event: MessageEvent):
     chat_id = f"user_{event.user_id}"
 
     reply = await ollama.chat(chat_id, user_msg)
+   # 喵~我要开始分句啦，慢慢说给你听哦~（轻笑）
     try:
-        # 喵~我要开始分句啦，慢慢说给你听哦~（轻笑）
+        # 嗯哼~分句处理呢~（眨眼）
         escaped_separators = [re.escape(sep) for sep in ollama.sentence_separators]
         pattern = '|'.join(escaped_separators)
         sentences = re.split(pattern, reply)
@@ -195,8 +186,11 @@ async def handle_chat(bot: Bot, event: MessageEvent):
             await bot.send(event, Message(sentence))
             # 喵~稍微停顿一下，1秒钟好不好~（眨眼）
             await asyncio.sleep(1)
-        # 加个表情包
-        sentence = ollama.add_emoji(sentence, user_msg)
+        # 喵~话说完啦，送你一个俏皮表情包哦~（眨眼）
+        # if sentences:  # 确保有句子
+        #     final_emoji = ollama.add_emoji("", user_msg)  # 仅发送表情包
+        #     if final_emoji.strip():  # 确保表情包不为空
+        #         await bot.send(event, Message(final_emoji))
     except ActionFailed as e:
         # 哎呀~我好像被QQ拦住了，检查下我的权限好不好~（轻声）
         logger.error(f"发送消息失败了呢: {e}，别生气哦~")
