@@ -16,8 +16,6 @@ from plugins.ai_main.gpt_text import lovel_text, high_white
 # 私聊的QQ号
 ALLOWED_PRIVATE_QQ = [2740954024]
 
-
-
 # 表情包存储的JSON文件路径
 EMOJI_JSON_PATH = "emojis.json"
 
@@ -35,6 +33,7 @@ class OllamaWalk:
     def __init__(self):
         # 从环境变量中读取API密钥
         self.api = os.getenv("DEEPSEEK_API_KEY", "default-key-if-not-set")
+        self.emoji_path = os.path.join("./repository", EMOJI_JSON_PATH)
         self.talk_path = "./repository/talk/"
         # 确保目录存在呢
         os.makedirs(self.talk_path, exist_ok=True)
