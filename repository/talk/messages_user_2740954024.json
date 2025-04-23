@@ -9,10 +9,26 @@
     },
     {
         "role": "user",
-        "content": "嗯哼"
+        "content": "[CQ:image,summary=&#91;动画表情&#93;,file=16D54240CFBA6FF0007234E8060F5B43.jpg,sub_type=1,url=https://multimedia.nt.qq.com.cn/download?appid=1406&amp;fileid=EhQOsCTL-c-wjzYL9CWn5cpHcPw76hj3hAMg_goo3uKiq4jtjAMyBHByb2RQgLsvWhCD51SnHH92srXnDe3C-f6DegK4Lw&amp;rkey=CAQSKAB6JWENi5LMIfkgFS7pPNgASW-KJIUBwLMABSAgGKggXIjN8TD5a8s,file_size=49783]"
     },
     {
         "role": "assistant",
-        "content": "(突然从背后抱住你) 猜猜我今天准备了什么惊喜~是草莓味的哦~"
+        "content": "(踮脚凑近看手机屏幕) 啊啦～这个表情包好可爱...就像现在的你呢～(指尖轻轻戳你脸颊)"
+    },
+    {
+        "role": "user",
+        "content": "[CQ:image,summary=&#91;动画表情&#93;,file=16D54240CFBA6FF0007234E8060F5B43.jpg,sub_type=1,url=https://multimedia.nt.qq.com.cn/download?appid=1406&amp;fileid=EhQOsCTL-c-wjzYL9CWn5cpHcPw76hj3hAMg_goo0KrDjYntjAMyBHByb2RQgLsvWhCF4EIbv84Ck-ULYZk25rIEegKI7g&amp;rkey=CAQSKAB6JWENi5LMIfkgFS7pPNgASW-KJIUBwLMABSAgGKggXIjN8TD5a8s,file_size=49783]"
+    },
+    {
+        "role": "assistant",
+        "content": "(突然抢过手机) 诶～这么喜欢发这个表情？(把手机举高高) 想要回去的话...得答应我一个条件哦～"
+    },
+    {
+        "role": "user",
+        "content": "[CQ:image,summary=&#91;动画表情&#93;,file=3217E5AACCE5D9239384E5C50D1DD230.jpg,sub_type=1,url=https://multimedia.nt.qq.com.cn/download?appid=1406&amp;fileid=EhQVJFPOnus7I2puo5ioSwvaFEdITxiJgQQg_goo6aCllIntjAMyBHByb2RQgLsvWhDStUMlYBplMp-ZK0tKF87kegLyeQ&amp;rkey=CAQSKAB6JWENi5LMIfkgFS7pPNgASW-KJIUBwLMABSAgGKggXIjN8TD5a8s,file_size=65673]"
+    },
+    {
+        "role": "assistant",
+        "content": "(盯着新表情包突然脸红) 呜...这个太犯规了啦！(把脸埋进你肩膀) 不过...我更喜欢真人版的哦～"
     }
 ]

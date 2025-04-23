@@ -42,6 +42,8 @@ class OllamaWalk:
         self.sentence_separators = ["。", "！", "~", "？", "..."]
         # 消息记录会根据聊天对象分开存储哦~（轻笑）
         self.messages_dict = {}
+        # 加载表情包数据，确保初始化
+        self.load_emojis()
         # 表情包发送概率
         self.emoji_probability = 1
 
@@ -77,6 +79,78 @@ class OllamaWalk:
                 {"role": "system", "content": high_white},
                 {"role": "user", "content": lovel_text}
             ]
+    
+    # 表情包相关部分
+    def load_emojis(self):
+        # 喵~读取表情包数据哦~（轻笑）
+        default_emojis = {
+            "摸摸": "[CQ:image,file=https://your-server/emojis/touch.gif]",
+            "开心": "[CQ:image,file=https://your-server/emojis/heart.png]"
+        }
+        try:
+            if not os.path.exists(self.emoji_path):
+                # 如果文件不存在，创建默认文件
+                logger.info(f"表情包文件不存在，创建默认文件: {self.emoji_path}呢~")
+                with open(self.emoji_path, "w", encoding="utf-8") as f:
+                    json.dump(default_emojis, f, ensure_ascii=False, indent=4)
+            with open(self.emoji_path, "r", encoding="utf-8") as f:
+                self.custom_emoji_dict = json.load(f)
+            self.custom_emoji_list = list(self.custom_emoji_dict.values())
+            logger.debug(f"偷偷加载表情包数据: {self.custom_emoji_dict}呢~")
+        except Exception as e:
+            logger.error(f"读取表情包文件失败了呢: {e}，用默认数据哦~")
+            self.custom_emoji_dict = default_emojis
+            self.custom_emoji_list = list(self.custom_emoji_dict.values())
+            # 确保写入默认数据
+            try:
+                with open(self.emoji_path, "w", encoding="utf-8") as f:
+                    json.dump(self.custom_emoji_dict, f, ensure_ascii=False, indent=4)
+            except Exception as write_error:
+                logger.error(f"写入默认表情包文件失败了呢: {write_error}，但我已经设置了默认数据哦~")
+
+    def save_emojis(self):
+        # 喵~保存表情包数据哦~（轻笑）
+        try:
+            with open(self.emoji_path, "w", encoding="utf-8") as f:
+                json.dump(self.custom_emoji_dict, f, ensure_ascii=False, indent=4)
+            logger.debug(f"悄悄保存表情包数据: {self.custom_emoji_dict}呢~")
+        except Exception as e:
+            logger.error(f"保存表情包文件失败了呢: {e}，别生气好不好~")
+
+    def save_user_emoji(self, emoji_url, user_id):
+        # 喵~保存用户发送的表情包URL哦~（眨眼）
+        try:
+            if not hasattr(self, 'custom_emoji_dict') or not hasattr(self, 'custom_emoji_list'):
+                logger.warning("表情包数据未初始化，重新加载哦~")
+                self.load_emojis()
+            if any(emoji_url in emoji for emoji in self.custom_emoji_dict.values()):
+                logger.debug(f"表情包URL已存在: {emoji_url}，不重复保存哦~")
+                return False
+            remark = f"用户表情_{user_id}_{random.randint(100, 999)}"
+            self.custom_emoji_dict[remark] = f"[CQ:image,file={emoji_url}]"
+            self.custom_emoji_list = list(self.custom_emoji_dict.values())
+            self.save_emojis()
+            logger.info(f"保存用户表情包URL成功: {emoji_url}，备注: {remark}呢~")
+            return True
+        except Exception as e:
+            logger.error(f"保存用户表情包URL失败了呢: {e}，别生气哦~")
+            return False
+
+    def add_emoji(self, sentence, user_text, is_image_message=False):
+        # 喵~如果用户发了表情包，我也回一个表情包哦~（眨眼）
+        if is_image_message:
+            return f"{sentence} {random.choice(self.custom_emoji_list)}"  # 随机回复一个表情包
+        # 喵~看看你说了什么，挑个收藏表情给你哦~（眨眼）
+        user_text = user_text.lower()  # 忽略大小写
+        for keyword, emoji in self.custom_emoji_dict.items():
+            if keyword.lower() in user_text:
+                return f"{sentence} {emoji}"  # 匹配备注
+        # 嗯哼~没找到匹配的备注，随机挑一个收藏表情吧~（轻笑）
+        if random.random() < self.emoji_probability:
+            emoji = random.choice(self.custom_emoji_list)
+            return f"{sentence} {emoji}"
+        return f"{sentence} {random.choice(self.custom_emoji_list)}"  # 强制表情
+
 
     def save_messages(self, chat_id, messages_list):
         file_path = self.get_file_path(chat_id)
@@ -152,6 +226,7 @@ ollama = OllamaWalk()
 @chat.handle()
 async def handle_chat(bot: Bot, event: MessageEvent):
     user_msg = str(event.get_message()).strip()
+    is_image_message = user_msg.startswith("[CQ:image")
     if not user_msg:
         return
     # 嗯哼~收到你的消息啦，开心得不得了呢~（眨眼）
@@ -161,35 +236,61 @@ async def handle_chat(bot: Bot, event: MessageEvent):
    
     chat_id = f"user_{event.user_id}"
 
+    # 如果是表情包消息，保存表情包URL
+    if is_image_message:
+        match = re.search(r'url=(https?://[^,\]]+)', user_msg)
+        if match:
+            emoji_url = match.group(1)
+            ollama.save_user_emoji(emoji_url, event.user_id)
+
     reply = await ollama.chat(chat_id, user_msg)
    # 喵~我要开始分句啦，慢慢说给你听哦~（轻笑）
     try:
-        # 嗯哼~分句处理呢~（眨眼）
-        escaped_separators = [re.escape(sep) for sep in ollama.sentence_separators]
-        pattern = '|'.join(escaped_separators)
-        sentences = re.split(pattern, reply)
-        sentences = [s.strip() for s in sentences if s.strip()]
+        # 喵~我要开始分句啦，慢慢说给你听哦~（轻笑）
+        # 先按换行符分割
+        lines = reply.split("\n")
+        sentences = []
+        for line in lines:
+            line = line.strip()  # 去除每行首尾空白
+            if not line:
+                continue  # 跳过空行
+            # 按分隔符进一步分割每行
+            escaped_separators = [re.escape(sep) for sep in ollama.sentence_separators]
+            pattern = '|'.join(escaped_separators)
+            line_sentences = re.split(pattern, line)
+            # 保留分隔符
+            for i, sentence in enumerate(line_sentences):
+                sentence = sentence.strip()  # 去除每句首尾空白
+                if not sentence:
+                    continue  # 跳过空句
+                orig_index = line.find(sentence)
+                orig_end = orig_index + len(sentence)
+                if i < len(line_sentences) - 1:
+                    found_separator = None
+                    for sep in ollama.sentence_separators:
+                        if line.startswith(sep, orig_end):
+                            found_separator = sep
+                            break
+                    if found_separator:
+                        sentence += found_separator
+                sentences.append(sentence)
+
         # 嘻嘻~一句一句发给你，每句间隔1秒，感觉怎么样~（眨眼）
-        for i, sentence in enumerate(sentences):
-            orig_index = reply.find(sentence)
-            orig_end = orig_index + len(sentence)
-            if i < len(sentences) - 1:
-                found_separator = None
-                for sep in ollama.sentence_separators:
-                    if reply.startswith(sep, orig_end):
-                        found_separator = sep
-                        break
-                if found_separator:
-                    sentence += found_separator
+        for sentence in sentences:
             # 嗯哼~慢慢发给你，别急哦~（轻笑）
             await bot.send(event, Message(sentence))
             # 喵~稍微停顿一下，1秒钟好不好~（眨眼）
             await asyncio.sleep(1)
-        # 喵~话说完啦，送你一个俏皮表情包哦~（眨眼）
-        # if sentences:  # 确保有句子
-        #     final_emoji = ollama.add_emoji("", user_msg)  # 仅发送表情包
-        #     if final_emoji.strip():  # 确保表情包不为空
-        #         await bot.send(event, Message(final_emoji))
+
+        # 喵~话说完啦，送你一个收藏的专属表情包哦~（眨眼）
+        if sentences:  # 确保有句子
+            try:
+                final_emoji = ollama.add_emoji("", user_msg, is_image_message)
+                if final_emoji.strip():
+                    await bot.send(event, Message(final_emoji))
+            except ActionFailed as e:
+                logger.error(f"发送表情包失败了呢: {e}，别生气哦~")
+                await bot.send(event, Message("喵~表情包好像发不出去，稍后再试哦！"))
     except ActionFailed as e:
         # 哎呀~我好像被QQ拦住了，检查下我的权限好不好~（轻声）
         logger.error(f"发送消息失败了呢: {e}，别生气哦~")
