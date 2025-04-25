@@ -10,7 +10,7 @@ adapters = [
     { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" }
 ]
 plugins = []
-plugin_dirs = ["plugins","plugins/ai_main"]
+plugin_dirs = ["plugins","plugins/main"]
 builtin_plugins = []
 
 [tool.poetry.dependencies]

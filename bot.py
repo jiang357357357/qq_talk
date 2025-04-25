@@ -32,5 +32,5 @@ nonebot.load_from_toml(TOML_PATH)
 
 if __name__ == "__main__":
     plugin: Plugin | None = nonebot.get_plugin("ai_main")
-    from plugins.ai_main.ai_chat import OllamaWalk
+    from plugins.main.ai_chat import MainWalk
     nonebot.run()

@@ -1,12 +1,12 @@
 from nonebot.plugin import PluginMetadata
 
-from .ai_chat import OllamaWalk
+from .emojis import EmojiManager
 
 __plugin_meta__ = PluginMetadata(
-    name="示例插件",
-    description="这是一个示例插件",
+    name="表情包插件",
+    description="这是一个表情包插件",
     usage="没什么用",
     type="application",
-    config=OllamaWalk,
+    config=EmojiManager,
     extra={},
 )
