@@ -12,7 +12,7 @@ class EmojiManager:
         self.emoji_probability = 1
         # 动态设置根路径
         self.is_windows = os.name == "nt"
-        self.base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")) if self.is_windows else "/home/web/qq_ai"
+        self.base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")) if self.is_windows else "/home/web/qq_ai/code/qq_talk"
         self.emoji_base_path = os.path.join(self.base_path, "repository", "emojis")
         self.temp_path = os.path.join(os.getenv("USERPROFILE") if self.is_windows else "/home/web", ".config", "QQ", "NapCat", "temp")
         # 确保临时目录存在
