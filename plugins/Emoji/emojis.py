@@ -1,173 +1,216 @@
 import os
-import json
 import random
 import aiohttp
+from PIL import Image
 from nonebot import on_message, logger
 from nonebot.adapters.onebot.v11 import MessageSegment
 from nonebot.adapters import Bot, Event
-
-# 表情包存储的JSON文件路径
-EMOJI_JSON_PATH = "emojis.json"
-# 表情包存储的文件夹路径
-EMOJI_FILE_PATH = "emojis"
 
 class EmojiManager:
     def __init__(self):
         # 初始化表情包管理器哦
         self.emoji_probability = 1
-        self.local_emoji_file_path = "repository/emojis"  # Windows 本地路径，仅用于开发
-        self.server_emoji_file_path = "/home/web/qq_ai/repository/emojis"  # 阿里云服务器路径
-        self.emoji_json_path = "repository/emojis.json"
-        self.custom_emoji_dict = {}
-        self.custom_emoji_list = []
-        self.load_emojis()
+        # 动态设置根路径
+        self.is_windows = os.name == "nt"
+        self.base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")) if self.is_windows else "/home/web/qq_ai"
+        self.emoji_base_path = os.path.join(self.base_path, "repository", "emojis")
+        self.temp_path = os.path.join(os.getenv("USERPROFILE") if self.is_windows else "/home/web", ".config", "QQ", "NapCat", "temp")
+        # 确保临时目录存在
+        os.makedirs(self.temp_path, exist_ok=True)
+        os.makedirs(self.emoji_base_path, exist_ok=True)
+        # 动态获取表情包文件夹
+        self.all_folders = self.get_emoji_folders()
 
-    def _get_file_url(self, filename):
-        # 直接使用阿里云服务器路径
-        file_path = os.path.join(self.server_emoji_file_path, filename)
-        file_path = file_path.replace("\\", "/")  # 确保路径分隔符是 /
-        logger.debug(f"生成表情包路径: {file_path}")
-        return f"file://{file_path}"
+    def get_emoji_folders(self):
+        # 动态读取 emojis 文件夹下的子文件夹
+        if not os.path.exists(self.emoji_base_path):
+            logger.error(f"表情包根目录不存在: {self.emoji_base_path}")
+            return []
+        folders = [f for f in os.listdir(self.emoji_base_path) if os.path.isdir(os.path.join(self.emoji_base_path, f))]
+        logger.debug(f"找到的表情包文件夹: {folders}")
+        return folders
 
-    def load_emojis(self):
-        # 喵~读取表情包数据哦~（轻笑）
-        default_emojis = {
-            "摸摸": "touch.gif",
-            "开心": "开心.jpg"  # 与实际文件匹配
-        }
+    def match_folder(self, reply_text, folders):
+        # 匹配文件夹的独立方法，方便后续修改
+        reply_text = reply_text.lower()
+        for folder in folders:
+            if folder.lower() in reply_text:
+                logger.debug(f"匹配到文件夹: {folder}")
+                return folder
+        return None
+
+    def select_emoji_folder(self, reply_text):
+        # 根据回复内容选择表情包文件夹
+        matched_folder = self.match_folder(reply_text, self.all_folders)
+        if matched_folder:
+            return matched_folder
+        # 如果无法匹配，随机选择一个文件夹
+        chosen_folder = random.choice(self.all_folders) if self.all_folders else None
+        logger.debug(f"未匹配到文件夹，随机选择: {chosen_folder}")
+        return chosen_folder
+
+    def _get_file_url(self, filepath):
+        # 使用标准化的 file:// 路径
+        filepath = os.path.abspath(filepath)
+        filepath = filepath.replace("\\", "/")  # 统一使用正斜杠
+        file_url = f"file:///{filepath}"
+        logger.debug(f"生成表情包路径: {file_url}")
+        return file_url
+
+    def _process_image(self, src_path, scale_factor=0.5, quality=80):
         try:
-            if not os.path.exists(self.emoji_json_path):
-                logger.info(f"表情包JSON文件不存在，创建默认文件: {self.emoji_json_path}")
-                with open(self.emoji_json_path, "w", encoding="utf-8") as f:
-                    json.dump(default_emojis, f, ensure_ascii=False, indent=4)
-            with open(self.emoji_json_path, "r", encoding="utf-8") as f:
-                emoji_dict = json.load(f)
-                # 将文件名转为 MessageSegment.image
-                self.custom_emoji_dict = {}
-                for k, v in emoji_dict.items():
-                    file_url = self._get_file_url(v)
-                    if file_url:
-                        self.custom_emoji_dict[k] = MessageSegment.image(file_url)
-                    else:
-                        logger.warning(f"表情包 {v} 路径生成失败，跳过")
-                self.custom_emoji_list = list(self.custom_emoji_dict.values())
-                logger.debug(f"加载表情包数据: {self.custom_emoji_dict}")
+            # 确保临时目录存在
+            if not os.path.exists(self.temp_path):
+                os.makedirs(self.temp_path, exist_ok=True)
+
+            # 规范化路径
+            src_path = os.path.abspath(src_path.replace("/", os.sep))
+            logger.debug(f"规范化后的路径: {src_path}")
+
+            # 临时文件路径
+            filename = os.path.basename(src_path)
+            temp_filename = f"temp_{random.randint(1000, 9999)}_{filename}"
+            temp_path = os.path.join(self.temp_path, temp_filename)
+
+            # 检查原始文件是否存在
+            if not os.path.exists(src_path):
+                logger.error(f"原始表情包文件不存在: {src_path}")
+                return None
+
+            # 检查文件是否可读
+            if not os.access(src_path, os.R_OK):
+                logger.error(f"文件不可读: {src_path}")
+                return None
+
+            # 使用 Pillow 处理图片
+            with Image.open(src_path) as img:
+                # 按比例缩放
+                new_width = int(img.width * scale_factor)
+                new_height = int(img.height * scale_factor)
+                img = img.resize((new_width, new_height), Image.LANCZOS)
+                # 转换为 RGB（如果需要保存为 JPEG）
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                # 保存并降低画质
+                img.save(temp_path, "JPEG", quality=quality)
+                logger.info(f"表情包已缩放并降低画质: {temp_path}, 缩放比例: {scale_factor}, 画质: {quality}")
+            return temp_path
         except Exception as e:
-            logger.error(f"读取表情包文件失败了呢: {e}，用默认数据")
-            self.custom_emoji_dict = {}
-            for k, v in default_emojis.items():
-                file_url = self._get_file_url(v)
-                if file_url:
-                    self.custom_emoji_dict[k] = MessageSegment.image(file_url)
-            self.custom_emoji_list = list(self.custom_emoji_dict.values())
-            try:
-                with open(self.emoji_json_path, "w", encoding="utf-8") as f:
-                    json.dump(default_emojis, f, ensure_ascii=False, indent=4)
-            except Exception as write_error:
-                logger.error(f"写入默认表情包文件失败: {write_error}, 但是已经设置默认数据")
+            logger.error(f"处理图片失败: {e}")
+            return None
 
-    def save_emojis(self):
-        # 保存表情包数据到JSON，只存文件名
-        try:
-            emoji_dict = {k: str(v).split("/")[-1] for k, v in self.custom_emoji_dict.items()}
-            with open(self.emoji_json_path, "w", encoding="utf-8") as f:
-                json.dump(emoji_dict, f, ensure_ascii=False, indent=4)
-            logger.debug(f"保存表情包数据: {emoji_dict}")
-        except Exception as e:
-            logger.error(f"保存表情包文件失败: {e}")
+    def get_random_emoji(self, folder_name):
+        # 从指定文件夹中随机选择一张图片
+        folder_path = os.path.join(self.emoji_base_path, folder_name)
+        if not os.path.exists(folder_path):
+            logger.error(f"表情包文件夹不存在: {folder_path}")
+            return None
 
-    async def download_image(self, url, filename):
-        # 下载图片到本地（Windows）
+        # 获取文件夹中的所有图片文件
+        image_extensions = (".jpg", ".jpeg", ".png", ".gif")
+        images = [f for f in os.listdir(folder_path) if f.lower().endswith(image_extensions)]
+        if not images:
+            logger.warning(f"文件夹 {folder_name} 中没有图片")
+            return None
+
+        # 随机选择一张图片
+        chosen_image = random.choice(images)
+        image_path = os.path.join(folder_path, chosen_image)
+        logger.debug(f"从 {folder_name} 文件夹中选择图片: {image_path}")
+        return image_path
+
+    async def download_image(self, url, filename, folder_name):
         try:
+            folder_path = os.path.join(self.emoji_base_path, folder_name)
+            os.makedirs(folder_path, exist_ok=True)
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as resp:
-                    if resp.status == 200:
-                        file_path = os.path.join(self.local_emoji_file_path, filename)
-                        with open(file_path, "wb") as f:
-                            f.write(await resp.read())
-                        logger.info(f"表情包下载成功: {file_path}")
-                        return file_path
-                    else:
+                    if resp.status != 200:
                         logger.error(f"下载表情包失败，状态码: {resp.status}")
                         return None
+                    file_path = os.path.join(folder_path, filename)
+                    with open(file_path, "wb") as f:
+                        f.write(await resp.read())
+                    logger.info(f"表情包下载成功: {file_path}")
+            return file_path
         except Exception as e:
             logger.error(f"下载表情包失败: {e}")
             return None
 
-    async def save_user_emoji(self, emoji_url, remark, bot: Bot, event: Event):
-        # 保存用户发送的表情包到本地，并上传到阿里云
+    async def save_user_emoji(self, emoji_url, folder_name, bot: Bot, event: Event):
         try:
-            if not hasattr(self, 'custom_emoji_dict') or not hasattr(self, 'custom_emoji_list'):
-                logger.warning("表情包数据未初始化，重新加载哦")
-                self.load_emojis()
-            # 检查是否已存在
-            if any(emoji_url in str(emoji) for emoji in self.custom_emoji_dict.values()):
-                logger.debug(f"表情包URL已存在: {emoji_url}，不重复保存")
+            if folder_name not in self.all_folders:
+                logger.error(f"无效的表情包文件夹: {folder_name}")
                 return False
-            # 生成唯一文件名
-            filename = f"emoji_{len(self.custom_emoji_dict)}_{random.randint(1000, 9999)}.png"
-            # 下载图片到 Windows 本地
-            file_path = await self.download_image(emoji_url, filename)
+            filename = f"emoji_{random.randint(1000, 9999)}.png"
+            file_path = await self.download_image(emoji_url, filename, folder_name)
             if not file_path:
                 return False
-            # 保存到表情包字典，只存文件名
-            self.custom_emoji_dict[remark] = MessageSegment.image(self._get_file_url(filename))
-            self.custom_emoji_list = list(self.custom_emoji_dict.values())
-            self.save_emojis()
-            logger.info(f"保存表情包成功: {file_path}，备注: {remark}")
+            logger.info(f"保存表情包成功: {file_path}，文件夹: {folder_name}")
             return True
         except Exception as e:
             logger.error(f"保存表情包失败了: {e}")
             return False
 
     def find_best_emoji(self, reply_text):
-        # 根据回复内容找最匹配的表情包
         try:
-            if not hasattr(self, 'custom_emoji_dict') or not hasattr(self, 'custom_emoji_list'):
-                logger.warning("表情包数据未初始化，重新加载")
-                self.load_emojis()
-            if not self.custom_emoji_dict:
-                logger.debug("表情包列表为空，跳过表情包发送")
+            if not self.all_folders:
+                logger.error("没有可用的表情包文件夹")
                 return None
 
-            reply_text = reply_text.lower()
-            best_match = None
-            best_score = -1
+            # 根据回复选择文件夹
+            folder_name = self.select_emoji_folder(reply_text)
+            if not folder_name:
+                return None
 
-            for remark, emoji in self.custom_emoji_dict.items():
-                remark = remark.lower()
-                score = 0
-                for i in range(len(remark)):
-                    for j in range(i + 1, len(remark) + 1):
-                        substring = remark[i:j]
-                        if substring in reply_text:
-                            score = max(score, len(substring))
-                if score > best_score:
-                    best_score = score
-                    best_match = emoji
+            # 从文件夹中随机选择一张图片
+            image_path = self.get_random_emoji(folder_name)
+            if not image_path:
+                return None
 
-            if best_match:
-                logger.debug(f"找到最匹配的表情包，备注相关性得分: {best_score}，表情: {best_match}")
-                return best_match
-            else:
-                logger.debug("没有找到匹配的备注，随机挑一个表情")
-                return random.choice(self.custom_emoji_list) if self.custom_emoji_list else None
+            # 预处理图片
+            processed_path = self._process_image(image_path, scale_factor=0.5, quality=80)
+            if processed_path:
+                return MessageSegment.image(self._get_file_url(processed_path))
+            logger.warning(f"图片处理失败，尝试使用原始图片: {image_path}")
+            return MessageSegment.image(self._get_file_url(image_path))
         except Exception as e:
             logger.error(f"选择表情包失败了: {e}，跳过表情包发送")
             return None
 
     def add_emoji(self, sentence, user_text, is_image_message=False):
-        # 如果用户发了表情包，则也回一个表情包
         if is_image_message:
-            emoji = random.choice(self.custom_emoji_list) if self.custom_emoji_list else None
+            # 对于图片消息，随机选择一个文件夹
+            folder_name = random.choice(self.all_folders) if self.all_folders else None
+            if not folder_name:
+                return sentence
+
+            image_path = self.get_random_emoji(folder_name)
+            if not image_path:
+                return sentence
+
+            processed_path = self._process_image(image_path, scale_factor=0.5, quality=80)
+            if processed_path:
+                emoji = MessageSegment.image(self._get_file_url(processed_path))
+            else:
+                logger.warning(f"图片处理失败，尝试使用原始图片: {image_path}")
+                emoji = MessageSegment.image(self._get_file_url(image_path))
             return f"{sentence} {emoji}" if emoji else sentence
-        # 分析用户话语，找出最匹配的表情包
-        user_text = user_text.lower()
-        for keyword, emoji in self.custom_emoji_dict.items():
-            if keyword.lower() in user_text:
-                return f"{sentence} {emoji}"  # 匹配备注
-        # 没找到匹配的备注，随机挑一个收藏表情
-        if random.random() < self.emoji_probability:
-            emoji = random.choice(self.custom_emoji_list) if self.custom_emoji_list else None
-            return f"{sentence} {emoji}" if emoji else sentence
-        return sentence
+
+        # 根据回复选择文件夹
+        folder_name = self.select_emoji_folder(sentence)
+        if not folder_name:
+            return sentence
+
+        image_path = self.get_random_emoji(folder_name)
+        if not image_path:
+            return sentence
+
+        processed_path = self._process_image(image_path, scale_factor=0.5, quality=80)
+        if processed_path:
+            emoji = MessageSegment.image(self._get_file_url(processed_path))
+        else:
+            logger.warning(f"图片处理失败，尝试使用原始图片: {image_path}")
+            emoji = MessageSegment.image(self._get_file_url(image_path))
+        return f"{sentence} {emoji}" if emoji else sentence
