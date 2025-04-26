@@ -1,76 +1,124 @@
- # 表情包相关部分
 import os
 import json
 import random
+import aiohttp
 from nonebot import on_message, logger
+from nonebot.adapters.onebot.v11 import MessageSegment
+from nonebot.adapters import Bot, Event
 
 # 表情包存储的JSON文件路径
 EMOJI_JSON_PATH = "emojis.json"
+# 表情包存储的文件夹路径
+EMOJI_FILE_PATH = "emojis"
 
 class EmojiManager:
     def __init__(self):
         # 初始化表情包管理器哦
-        # 表情包发送概率
         self.emoji_probability = 1
-        self.emoji_file_path = os.path.join("./repository", EMOJI_JSON_PATH)  # 表情包存储的JSON文件路径
+        self.local_emoji_file_path = "repository/emojis"  # Windows 本地路径，仅用于开发
+        self.server_emoji_file_path = "/home/web/qq_ai/repository/emojis"  # 阿里云服务器路径
+        self.emoji_json_path = "repository/emojis.json"
         self.custom_emoji_dict = {}
-        # 加载表情包数据，确保初始化
+        self.custom_emoji_list = []
         self.load_emojis()
+
+    def _get_file_url(self, filename):
+        # 直接使用阿里云服务器路径
+        file_path = os.path.join(self.server_emoji_file_path, filename)
+        file_path = file_path.replace("\\", "/")  # 确保路径分隔符是 /
+        logger.debug(f"生成表情包路径: {file_path}")
+        return f"file://{file_path}"
 
     def load_emojis(self):
         # 喵~读取表情包数据哦~（轻笑）
         default_emojis = {
-            "摸摸": "[CQ:image,file=https://your-server/emojis/touch.gif]",
-            "开心": "[CQ:image,file=https://your-server/emojis/heart.png]"
+            "摸摸": "touch.gif",
+            "开心": "开心.jpg"  # 与实际文件匹配
         }
         try:
-            if not os.path.exists(self.emoji_file_path):
-                # 如果文件不存在，创建默认文件
-                logger.info(f"表情包文件不存在，创建默认文件: {self.emoji_file_path}")
-                with open(self.emoji_file_path, "w", encoding="utf-8") as f:
+            if not os.path.exists(self.emoji_json_path):
+                logger.info(f"表情包JSON文件不存在，创建默认文件: {self.emoji_json_path}")
+                with open(self.emoji_json_path, "w", encoding="utf-8") as f:
                     json.dump(default_emojis, f, ensure_ascii=False, indent=4)
-            with open(self.emoji_file_path, "r", encoding="utf-8") as f:
-                self.custom_emoji_dict = json.load(f)
-            self.custom_emoji_list = list(self.custom_emoji_dict.values())
-            logger.debug(f"加载表情包数据: {self.custom_emoji_dict}")
+            with open(self.emoji_json_path, "r", encoding="utf-8") as f:
+                emoji_dict = json.load(f)
+                # 将文件名转为 MessageSegment.image
+                self.custom_emoji_dict = {}
+                for k, v in emoji_dict.items():
+                    file_url = self._get_file_url(v)
+                    if file_url:
+                        self.custom_emoji_dict[k] = MessageSegment.image(file_url)
+                    else:
+                        logger.warning(f"表情包 {v} 路径生成失败，跳过")
+                self.custom_emoji_list = list(self.custom_emoji_dict.values())
+                logger.debug(f"加载表情包数据: {self.custom_emoji_dict}")
         except Exception as e:
             logger.error(f"读取表情包文件失败了呢: {e}，用默认数据")
-            self.custom_emoji_dict = default_emojis
+            self.custom_emoji_dict = {}
+            for k, v in default_emojis.items():
+                file_url = self._get_file_url(v)
+                if file_url:
+                    self.custom_emoji_dict[k] = MessageSegment.image(file_url)
             self.custom_emoji_list = list(self.custom_emoji_dict.values())
-            # 确保写入默认数据
             try:
-                with open(self.emoji_file_path, "w", encoding="utf-8") as f:
-                    json.dump(self.custom_emoji_dict, f, ensure_ascii=False, indent=4)
+                with open(self.emoji_json_path, "w", encoding="utf-8") as f:
+                    json.dump(default_emojis, f, ensure_ascii=False, indent=4)
             except Exception as write_error:
-                logger.error(f"写入默认表情包文件失败: {write_error},但是已经设置默认数据")
+                logger.error(f"写入默认表情包文件失败: {write_error}, 但是已经设置默认数据")
 
     def save_emojis(self):
-        # 保存表情包数据
+        # 保存表情包数据到JSON，只存文件名
         try:
-            with open(self.emoji_file_path, "w", encoding="utf-8") as f:
-                json.dump(self.custom_emoji_dict, f, ensure_ascii=False, indent=4)
-            logger.debug(f"保存表情包数据: {self.custom_emoji_dict}")
+            emoji_dict = {k: str(v).split("/")[-1] for k, v in self.custom_emoji_dict.items()}
+            with open(self.emoji_json_path, "w", encoding="utf-8") as f:
+                json.dump(emoji_dict, f, ensure_ascii=False, indent=4)
+            logger.debug(f"保存表情包数据: {emoji_dict}")
         except Exception as e:
             logger.error(f"保存表情包文件失败: {e}")
 
-    def save_user_emoji(self, emoji_url, remark):
-        # 保存用户发送的表情包URL
+    async def download_image(self, url, filename):
+        # 下载图片到本地（Windows）
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        file_path = os.path.join(self.local_emoji_file_path, filename)
+                        with open(file_path, "wb") as f:
+                            f.write(await resp.read())
+                        logger.info(f"表情包下载成功: {file_path}")
+                        return file_path
+                    else:
+                        logger.error(f"下载表情包失败，状态码: {resp.status}")
+                        return None
+        except Exception as e:
+            logger.error(f"下载表情包失败: {e}")
+            return None
+
+    async def save_user_emoji(self, emoji_url, remark, bot: Bot, event: Event):
+        # 保存用户发送的表情包到本地，并上传到阿里云
         try:
             if not hasattr(self, 'custom_emoji_dict') or not hasattr(self, 'custom_emoji_list'):
                 logger.warning("表情包数据未初始化，重新加载哦")
                 self.load_emojis()
-            if any(emoji_url in emoji for emoji in self.custom_emoji_dict.values()):
+            # 检查是否已存在
+            if any(emoji_url in str(emoji) for emoji in self.custom_emoji_dict.values()):
                 logger.debug(f"表情包URL已存在: {emoji_url}，不重复保存")
                 return False
-            self.custom_emoji_dict[remark] = f"[CQ:image,file={emoji_url}]"
+            # 生成唯一文件名
+            filename = f"emoji_{len(self.custom_emoji_dict)}_{random.randint(1000, 9999)}.png"
+            # 下载图片到 Windows 本地
+            file_path = await self.download_image(emoji_url, filename)
+            if not file_path:
+                return False
+            # 保存到表情包字典，只存文件名
+            self.custom_emoji_dict[remark] = MessageSegment.image(self._get_file_url(filename))
             self.custom_emoji_list = list(self.custom_emoji_dict.values())
             self.save_emojis()
-            logger.info(f"保存表情包URL成功: {emoji_url}，备注: {remark}")
+            logger.info(f"保存表情包成功: {file_path}，备注: {remark}")
             return True
         except Exception as e:
-            logger.error(f"保存表情包URL失败了: {e}")
+            logger.error(f"保存表情包失败了: {e}")
             return False
-        
 
     def find_best_emoji(self, reply_text):
         # 根据回复内容找最匹配的表情包
@@ -79,17 +127,15 @@ class EmojiManager:
                 logger.warning("表情包数据未初始化，重新加载")
                 self.load_emojis()
             if not self.custom_emoji_dict:
-                logger.debug("表情包列表为空，用默认表情")
-                return "[CQ:image,file=https://your-server/emojis/default.gif]"
+                logger.debug("表情包列表为空，跳过表情包发送")
+                return None
 
             reply_text = reply_text.lower()
             best_match = None
             best_score = -1
 
-            # 简单匹配：计算回复与备注的公共子串长度
             for remark, emoji in self.custom_emoji_dict.items():
                 remark = remark.lower()
-                # 计算公共子串长度（简单方法）
                 score = 0
                 for i in range(len(remark)):
                     for j in range(i + 1, len(remark) + 1):
@@ -105,26 +151,23 @@ class EmojiManager:
                 return best_match
             else:
                 logger.debug("没有找到匹配的备注，随机挑一个表情")
-                return random.choice(self.custom_emoji_list) if self.custom_emoji_list else "[CQ:image,file=https://your-server/emojis/default.gif]"
+                return random.choice(self.custom_emoji_list) if self.custom_emoji_list else None
         except Exception as e:
-            logger.error(f"选择表情包失败了: {e}，先用默认表情")
-            return "[CQ:image,file=https://your-server/emojis/default.gif]"
-
+            logger.error(f"选择表情包失败了: {e}，跳过表情包发送")
+            return None
 
     def add_emoji(self, sentence, user_text, is_image_message=False):
         # 如果用户发了表情包，则也回一个表情包
         if is_image_message:
-            return f"{sentence} {random.choice(self.custom_emoji_list)}"  # 随机回复一个表情包
+            emoji = random.choice(self.custom_emoji_list) if self.custom_emoji_list else None
+            return f"{sentence} {emoji}" if emoji else sentence
         # 分析用户话语，找出最匹配的表情包
-        user_text = user_text.lower()  # 忽略大小写
+        user_text = user_text.lower()
         for keyword, emoji in self.custom_emoji_dict.items():
             if keyword.lower() in user_text:
                 return f"{sentence} {emoji}"  # 匹配备注
         # 没找到匹配的备注，随机挑一个收藏表情
         if random.random() < self.emoji_probability:
-            emoji = random.choice(self.custom_emoji_list)
-            return f"{sentence} {emoji}"
-        return f"{sentence} {random.choice(self.custom_emoji_list)}"  # 强制表情
-
-
-  
+            emoji = random.choice(self.custom_emoji_list) if self.custom_emoji_list else None
+            return f"{sentence} {emoji}" if emoji else sentence
+        return sentence
