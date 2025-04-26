@@ -156,7 +156,7 @@ class EmojiManager:
     def find_best_emoji(self, reply_text):
         try:
             if not self.all_folders:
-                logger.error("没有可用的表情包文件夹")
+                logger.error("self.all_folders")
                 return None
 
             # 根据回复选择文件夹
