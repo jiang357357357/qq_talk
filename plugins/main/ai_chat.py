@@ -5,14 +5,18 @@ import aiohttp
 import httpx
 import re
 import asyncio
-from nonebot import on_message, logger
+from nonebot import on_message, logger,get_driver
 import nonebot
 from nonebot.adapters.onebot.v11 import Message, MessageEvent, Bot, GroupMessageEvent, PrivateMessageEvent
 from nonebot.exception import ActionFailed
-from nonebot import require
+from nonebot import require,on_metaevent
 from nonebot.rule import to_me
+from datetime import datetime, timedelta
+
 from plugins.Emoji.emojis import EmojiManager
 from plugins.AI_talk.ai_talk import AiManager
+from plugins.Task.task import ScheduledMessage
+
 from nonebot.exception import NetworkError
 
 
@@ -167,10 +171,31 @@ class MainWalk:
 
 main_bot = MainWalk()
 
+# 在 NoneBot 启动时初始化 ScheduledMessage 并启动调度器
+scheduled_message = ScheduledMessage()
+
+
+
 @chat.handle()
 async def handle_chat(bot: Bot, event: MessageEvent):
     user_msg = str(event.get_message()).strip()
     logger.debug(f"收到你的消息啦: {user_msg}，是不是很棒~")
     await main_bot.get_mes_deal(user_msg, bot, event)
 
+
+# 监听 Bot 连接事件（通过 meta_event 的 connect 类型）
+bot_connect = on_metaevent()
+# 在 Bot 连接时安排测试任务
+@bot_connect.handle()
+async def schedule_test_task(bot: Bot):
+    if not scheduled_message.running:
+        scheduled_message.scheduler.start()
+        scheduled_message.running = True
+        logger.info("定时任务调度器已启动")
+
+
+    test_qq_number = "2740954024"  # 测试用 QQ 号（在 ALLOWED_PRIVATE_QQ 中）
+    send_time = datetime.now() + timedelta(minutes=1)  # 1 分钟后发送
+    await scheduled_message.schedule_message(test_qq_number, send_time)
+    logger.info(f"测试任务已安排: 在 {send_time} 向 {test_qq_number} 发送消息")
    
