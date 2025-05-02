@@ -21,14 +21,14 @@ class ScheduledMessage:
         self.scheduler = AsyncIOScheduler()
         self.running = False
 
-    async def generate_message(self, qq_number: str):
+    async def generate_message(self, qq_number: str,user_text):
         # 根据用户的聊天记录生成消息
         try:
             # 加载用户的聊天记录
-            chat_id = str(qq_number)  # 使用 QQ 号作为 chat_id
+            chat_id = f"user_{qq_number}"  # 使用 QQ 号作为 chat_id
             messages = self.ai_manager.load_messages(chat_id)
             # 添加一个默认用户输入，触发 AI 回复
-            prompt = f"(用户已经24小时没有回复你，现在是早上八点)"
+            prompt = user_text
             messages.append({"role": "user", "content": prompt})
             reply = await self.ai_manager.get_text(messages)
             messages.append({"role": "assistant", "content": reply})
@@ -39,11 +39,12 @@ class ScheduledMessage:
             logger.error(f"生成消息失败: {e}")
             return "喵~我踩到尾巴了，稍后再试哦！"
 
-    async def send_and_store_message(self, bot, qq_number: str):
+    async def send_and_store_message(self, bot, qq_number: str,user_text):
         # 发送消息并保存到聊天记录
         try:
+
             # 生成消息
-            message = await self.generate_message(qq_number)
+            message = await self.generate_message(qq_number,user_text)
             # 发送消息
             await bot.send_private_msg(user_id=qq_number, message=message)
             logger.info(f"成功发送消息给 {qq_number}: {message}")
@@ -54,7 +55,7 @@ class ScheduledMessage:
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "message": message
             }
-            chat_history_path = os.path.join(self.base_path, "repository", "chat_history.json")
+            chat_history_path = os.path.join(self.base_path, "repository", f"{qq_number}_chat_history.json")
             chat_history = []
             if os.path.exists(chat_history_path):
                 with open(chat_history_path, "r", encoding="utf-8") as f:
@@ -66,7 +67,7 @@ class ScheduledMessage:
         except Exception as e:
             logger.error(f"发送或存储消息失败: {e}")
 
-    async def schedule_message(self, qq_number: str, send_time: datetime):
+    async def schedule_message(self, qq_number: str, send_time: datetime,user_text):
         # 定时发送消息，等待直到获取到 Bot 实例
         try:
             # 等待直到获取到 Bot 实例
@@ -87,19 +88,17 @@ class ScheduledMessage:
             self.scheduler.add_job(
                 self.send_and_store_message,
                 trigger=DateTrigger(run_date=send_time),
-                args=[bot, qq_number]
+                args=[bot, qq_number,user_text]
             )
             logger.info(f"已安排定时任务: 在 {send_time} 向 {qq_number} 发送消息")
         except Exception as e:
             logger.error(f"安排定时任务失败: {e}")
 
-    def text_use(self):
+    def text_use(self,time,user_text):
         self.scheduler.start()
-        # 初始化定时消息插件
-        scheduled_message = ScheduledMessage()
 
-        # 安排 5 分钟后发送消息
-        send_time = datetime.now() + timedelta(minutes=1)
+        # 安排指定时间发送消息
+        send_time = datetime.now() + timedelta(minutes=time)
         qq_number = "2740954024"  # 目标 QQ 号
 
-        scheduled_message.schedule_message(qq_number, send_time)
+        self.schedule_message(qq_number, send_time,user_text)
