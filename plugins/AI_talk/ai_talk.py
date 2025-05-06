@@ -1,3 +1,4 @@
+import re
 import os
 import json
 import httpx
@@ -135,3 +136,30 @@ class AiManager:
             # 喵~我好像踩到尾巴了，稍后再聊好不好~（轻笑）
             logger.error(f"聊天处理出错了呢: {e}，别怪我哦~")
             return "喵~我好像踩到尾巴了，稍后再聊哦！"
+
+    def slice_talk(self,reply):
+        lines = reply.split("\n")
+        sentences = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            escaped_separators = [re.escape(sep) for sep in self.sentence_separators]
+            pattern = '|'.join(escaped_separators)
+            line_sentences = re.split(pattern, line)
+            for i, sentence in enumerate(line_sentences):
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                orig_index = line.find(sentence)
+                orig_end = orig_index + len(sentence)
+                if i < len(line_sentences) - 1:
+                    found_separator = None
+                    for sep in self.sentence_separators:
+                        if line.startswith(sep, orig_end):
+                            found_separator = sep
+                            break
+                    if found_separator:
+                        sentence += found_separator
+                sentences.append(sentence)
+        return sentences

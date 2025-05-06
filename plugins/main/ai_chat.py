@@ -1,8 +1,6 @@
 import json
 import os
-import random
 import aiohttp
-import httpx
 import re
 import asyncio
 from nonebot import on_message, logger,get_driver
@@ -38,7 +36,7 @@ chat = on_message(
 
 class MainWalk:
     def __init__(self):
-        self.sentence_separators = ["。", "！", "~", "？", "..."]
+        
         nonebot.load_plugins("AI_talk.ai_talk")
         nonebot.load_plugins("Emoji.emojis")
         nonebot.logger.info("插件加载完成，开始运行")
@@ -127,30 +125,7 @@ class MainWalk:
         # 正常消息处理
         reply = await self.ai_manager.chat(chat_id, user_msg)
         try:
-            lines = reply.split("\n")
-            sentences = []
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                escaped_separators = [re.escape(sep) for sep in self.sentence_separators]
-                pattern = '|'.join(escaped_separators)
-                line_sentences = re.split(pattern, line)
-                for i, sentence in enumerate(line_sentences):
-                    sentence = sentence.strip()
-                    if not sentence:
-                        continue
-                    orig_index = line.find(sentence)
-                    orig_end = orig_index + len(sentence)
-                    if i < len(line_sentences) - 1:
-                        found_separator = None
-                        for sep in self.sentence_separators:
-                            if line.startswith(sep, orig_end):
-                                found_separator = sep
-                                break
-                        if found_separator:
-                            sentence += found_separator
-                    sentences.append(sentence)
+            sentences = self.ai_manager.slice_talk(reply)
             for sentence in sentences:
                 await bot.send(event, Message(sentence))
                 await asyncio.sleep(1)
@@ -183,19 +158,19 @@ async def handle_chat(bot: Bot, event: MessageEvent):
     await main_bot.get_mes_deal(user_msg, bot, event)
 
 
-# 监听 Bot 连接事件（通过 meta_event 的 connect 类型）
-bot_connect = on_metaevent()
-# 在 Bot 连接时安排测试任务
-@bot_connect.handle()
-async def schedule_test_task(bot: Bot):
-    if not scheduled_message.running:
-        scheduled_message.scheduler.start()
-        scheduled_message.running = True
-        logger.info("定时任务调度器已启动")
+# # 监听 Bot 连接事件（通过 meta_event 的 connect 类型）
+# bot_connect = on_metaevent()
+# # 在 Bot 连接时安排测试任务
+# @bot_connect.handle()
+# async def schedule_test_task(bot: Bot):
+#     if not scheduled_message.running:
+#         scheduled_message.scheduler.start()
+#         scheduled_message.running = True
+#         logger.info("定时任务调度器已启动")
 
 
-    test_qq_number = "2740954024"  # 测试用 QQ 号（在 ALLOWED_PRIVATE_QQ 中）
-    send_time = datetime.now() + timedelta(minutes=1)  # 1 分钟后发送
-    await scheduled_message.schedule_message(test_qq_number, send_time)
-    logger.info(f"测试任务已安排: 在 {send_time} 向 {test_qq_number} 发送消息")
+#     test_qq_number = "2740954024"  # 测试用 QQ 号（在 ALLOWED_PRIVATE_QQ 中）
+#     send_time = datetime.now() + timedelta(minutes=1)  # 1 分钟后发送
+#     await scheduled_message.schedule_message(test_qq_number, send_time)
+#     logger.info(f"测试任务已安排: 在 {send_time} 向 {test_qq_number} 发送消息")
    
