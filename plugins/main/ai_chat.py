@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from plugins.Emoji.emojis import EmojiManager
 from plugins.AI_talk.ai_talk import AiManager
 from plugins.Task.task import ScheduledMessage
+from plugins.Task.execute import *
 
 from nonebot.exception import NetworkError
 
