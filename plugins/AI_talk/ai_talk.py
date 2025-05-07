@@ -23,7 +23,8 @@ chat = on_message(
 class AiManager:
     def __init__(self):
         # 从环境变量中读取API密钥
-        self.api = os.getenv("DEEPSEEK_API_KEY", "default-key-if-not-set")
+        self.api = os.getenv("GROK_KEY", "default-key-if-not-set")
+        #  key os.getenv("DEEPSEEK_API_KEY", "default-key-if-not-set")
         # 聊天目录
         self.talk_path = "./repository/talk/"
         # 确保目录存在呢
@@ -82,9 +83,11 @@ class AiManager:
 
     async def get_text(self, user_input):
         try:
-            url = "https://api.deepseek.com/chat/completions"
+            url = "https://api.xgrok.club/v1/chat/completions"
+            # desk https://api.deepseek.com/chat/completions
             payload = json.dumps({
-                "model": "deepseek-chat",
+                "model": "grok-3",
+                # deepseek-chat
                 "messages": user_input,
                 "temperature": 0.7
             })

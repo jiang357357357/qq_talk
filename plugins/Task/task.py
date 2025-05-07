@@ -42,7 +42,10 @@ class ScheduledMessage:
             # 生成消息
             message = await self.generate_message(qq_number, user_text)
             # 发送消息
-            await bot.send_private_msg(user_id=qq_number, message=message)
+            sentences = self.ai_manager.slice_talk(message)
+            for sentence in sentences:
+                await asyncio.sleep(1)
+                await bot.send_private_msg(user_id=qq_number, message=sentence)
             logger.info(f"成功发送消息给 {qq_number}: {message}")
 
             # 记录到 chat_history.json

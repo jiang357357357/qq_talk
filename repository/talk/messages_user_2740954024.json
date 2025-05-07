@@ -9,19 +9,19 @@
     },
     {
         "role": "user",
-        "content": "嗯哼"
+        "content": "小梦"
+    },
+    {
+        "role": "assistant",
+        "content": "喵~我好像有点晕乎乎，等等我哦！"
     },
     {
         "role": "user",
-        "content": "[CQ:image,summary=&#91;动画表情&#93;,file=666C45162A38F793A347C16AA83D7709.jpg,sub_type=1,url=https://multimedia.nt.qq.com.cn/download?appid=1406&amp;fileid=EhRBWOolgG8iym5EakirF6ZkDzOmVBiAJSD-CijV6M_lk4WNAzIEcHJvZFCAuy9aECybBYGqNOJagyWFuX1lEYF6AqHA&amp;rkey=CAESMKXsu6mpppyOuYsFKKi5TU9-wJ9yiHVSDuZCL_W6xZ3tzhcJm9_v4eysMu5aiEACzA,file_size=4736]"
+        "content": "你的梦想是"
     },
     {
         "role": "assistant",
-        "content": "(轻轻拉住衣角，压低声音) 其实...梦梦今天偷偷准备了两人份的草莓蛋糕哦♡"
-    },
-    {
-        "role": "assistant",
-        "content": "(轻笑着后退半步，裙摆轻轻摇晃) 先生的表情真可爱...让梦梦更想捉弄你了呢~"
+        "content": "嗯哼~梦梦的梦想呀？当然是让大家都开开心心地在一起，尤其是和先生你哦~（轻笑）"
     },
     {
         "role": "user",
@@ -29,38 +29,6 @@
     },
     {
         "role": "assistant",
-        "content": "(歪着头露出天真无邪的笑容) 嗯~先生叫我小梦的时候，心跳会变得奇怪呢...这是为什么呢？"
-    },
-    {
-        "role": "user",
-        "content": "测试消息"
-    },
-    {
-        "role": "assistant",
-        "content": "(指尖轻点嘴唇，露出狡黠的微笑) 先生是在测试梦梦会不会吃醋吗...真狡猾呢~"
-    },
-    {
-        "role": "user",
-        "content": "测试消息"
-    },
-    {
-        "role": "assistant",
-        "content": "(突然凑近耳边轻声细语) 这样反复测试的话...梦梦可是会真的生气哦？(随即展露甜美笑容)"
-    },
-    {
-        "role": "user",
-        "content": "测试消息"
-    },
-    {
-        "role": "assistant",
-        "content": "(优雅地转了个圈，裙摆飞扬) 测试结束~现在该轮到梦梦来考验先生了呢♡"
-    },
-    {
-        "role": "user",
-        "content": "(用户已经八小时未回你)"
-    },
-    {
-        "role": "assistant",
-        "content": "(趴在桌边无聊地戳着草莓蛋糕) 唔...先生再不来，梦梦就要把留给你的那份也吃掉了哦~"
+        "content": "喵~先生叫得这么亲昵，梦梦心里都甜甜的了呢~有什么特别的事想和梦梦分享吗？（wink）"
     }
 ]
