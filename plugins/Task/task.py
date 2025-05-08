@@ -24,10 +24,34 @@ class ScheduledMessage:
             # 加载用户的聊天记录
             chat_id = f"user_{qq_number}"
             messages = self.ai_manager.load_messages(chat_id)
-            # 添加用户输入，触发 AI 回复
-            messages.append({"role": "user", "content": user_text})
-            reply = await self.ai_manager.get_text(messages)
-            messages.append({"role": "assistant", "content": reply})
+            
+            # 检测时间
+            if messages:  # 确保消息列表不为空
+                last_message = messages[-1]
+                last_timestamp = datetime.datetime.strptime(
+                        last_message["timestamp"], "%Y-%m-%d %H:%M:%S"
+                ).replace(tzinfo=datetime.timezone.utc)
+                current_time = datetime.datetime.now(datetime.timezone.utc)
+                time_diff = (current_time - last_timestamp).total_seconds()
+                if time_diff < 600:  # 小于10分钟（600秒）
+                    return False
+
+             # 添加用户消息，记录创建时间
+            messages.append({
+                "role": "user",
+                "content": user_text,
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            })
+            # 为 API 调用准备消息（只传递 role 和 content）
+            api_messages = [{"role": msg["role"], "content": msg["content"]} for msg in messages]
+            reply = await self.ai_manager.get_text(api_messages)
+            # 添加 AI 回复，记录创建时间
+            messages.append({
+                "role": "assistant",
+                "content": reply,
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            })
+            
             # 保存更新后的聊天记录
             self.ai_manager.save_messages(chat_id, messages)
             return reply
@@ -41,6 +65,8 @@ class ScheduledMessage:
             bot = get_bot()
             # 生成消息
             message = await self.generate_message(qq_number, user_text)
+            if not message:
+                return False
             # 发送消息
             sentences = self.ai_manager.slice_talk(message)
             for sentence in sentences:
