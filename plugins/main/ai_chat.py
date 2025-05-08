@@ -9,7 +9,7 @@ from nonebot.adapters.onebot.v11 import Message, MessageEvent, Bot, GroupMessage
 from nonebot.exception import ActionFailed
 from nonebot import require,on_metaevent
 from nonebot.rule import to_me
-from datetime import datetime, timedelta
+
 
 from plugins.Emoji.emojis import EmojiManager
 from plugins.AI_talk.ai_talk import AiManager

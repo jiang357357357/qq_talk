@@ -1,3 +1,4 @@
+import datetime
 import re
 import os
 import json
@@ -6,6 +7,7 @@ from nonebot import on_message, logger
 
 from plugins.AI_talk.gpt_text import lovel_text, high_white
 from nonebot.adapters.onebot.v11 import Message, MessageEvent, Bot, GroupMessageEvent, PrivateMessageEvent
+
 
 # 私聊的QQ号
 ALLOWED_PRIVATE_QQ = [1657172041,2740954024]
@@ -47,33 +49,32 @@ class AiManager:
         try:
             if not os.path.exists(file_path):
                 # 如果没有记录，初始化
+                current_time = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                 messages_list = [
-                    {"role": "system", "content": high_white},
-                    {"role": "user", "content": lovel_text}
+                    {"role": "system", "content": high_white, "timestamp": current_time},
+                    {"role": "user", "content": lovel_text, "timestamp": current_time}
                 ]
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(messages_list, f, ensure_ascii=False, indent=4)
                 logger.debug(f"创建消息文件: {file_path}呢~")
-                return messages_list
             else:
                 # 读取已有的消息记录
                 with open(file_path, "r", encoding="utf-8") as f:
                     messages_list = json.load(f)
                 logger.debug(f"读取消息文件: {file_path}，内容是: {messages_list}呢~")
-                return messages_list
+            return messages_list
         except Exception as e:
             # 读取消息失败
             logger.error(f"读取消息文件失败: {e}")
             return [
-                {"role": "system", "content": high_white},
-                {"role": "user", "content": lovel_text}
+                    {"role": "system", "content": high_white, "timestamp": current_time},
+                    {"role": "user", "content": lovel_text, "timestamp": current_time}
             ]
             
     def save_messages(self, chat_id, messages_list):
         file_path = self.get_file_path(chat_id)
         try:
-            #保存消息记录
             logger.debug(f"保存消息文件: {file_path}，内容是: {messages_list}呢~")
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(messages_list, f, ensure_ascii=False, indent=4)
@@ -127,10 +128,21 @@ class AiManager:
             if len(messages_list) > max_messages:
                 messages_list[2:] = messages_list[-self.talk_num * 2:]
             
-            # 喵~添加你的消息到记录里哦~（轻笑）
-            messages_list.append({"role": "user", "content": user_text})
-            reply = await self.get_text(messages_list)
-            messages_list.append({"role": "assistant", "content": reply})
+            # 添加用户消息，记录创建时间
+            messages_list.append({
+                "role": "user",
+                "content": user_text,
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            })
+            # 为 API 调用准备消息（只传递 role 和 content）
+            api_messages = [{"role": msg["role"], "content": msg["content"]} for msg in messages_list]
+            reply = await self.get_text(api_messages)
+            # 添加 AI 回复，记录创建时间
+            messages_list.append({
+                "role": "assistant",
+                "content": reply,
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            })
 
             # 嗯~保存最新的消息记录呢~（眨眼）
             self.save_messages(chat_id, messages_list)
