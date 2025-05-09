@@ -14,15 +14,24 @@ scheduled_message = ScheduledMessage()
 
 pro_ids = []
 
-# 定义随机的主任务
-# 设置定时器
-# 定义每天触发的任务
+# 定义随机的主任务,然后在主任务里随机触发子任务
 async def my_main_task(pro_qq="2740954024"):
     random_hours = random.randint(0, 24)
     random_minutes = random.randint(0, 59)
-    await scheduled_message.send_and_store_message(pro_qq,user_text='')
-
+    scheduler.add_job(
+        schedule_test_task, "cron",hour=str(random_hours), minute=str(random_minutes), id="job_1"
+    )
     logger.info(f"测试任务已安排: 向 {pro_qq} 发送消息")
+
+#子任务的内容
+async def my_sub_task(pro_qq="2740954024",user_text="(用户已经八小时未回你)"):
+    # 获取新话题
+    
+    return_text = await scheduled_message.generate_message(pro_qq,user_text)
+    if not return_text:
+        logger.info(f"最近 {pro_qq} 刚刚聊过")
+    else:
+        logger.info(f"测试任务已安排: 向 {pro_qq} 发送消息")
 
 
 
@@ -32,7 +41,8 @@ async def schedule_test_task(pro_qq="2740954024",user_text="(用户已经八小�
     return_text = await scheduled_message.send_and_store_message(pro_qq,user_text)
     if not return_text:
         logger.info(f"最近 {pro_qq} 刚刚聊过")
-    logger.info(f"测试任务已安排: 向 {pro_qq} 发送消息")
+    else:
+        logger.info(f"测试任务已安排: 向 {pro_qq} 发送消息")
 
 scheduler.add_job(
     schedule_test_task, "cron",hour='11', minute='12', id="job_1"
