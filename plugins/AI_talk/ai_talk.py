@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timezone
 import re
 import os
 import json
@@ -49,7 +49,7 @@ class AiManager:
         try:
             if not os.path.exists(file_path):
                 # 如果没有记录，初始化
-                current_time = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                 messages_list = [
                     {"role": "system", "content": high_white, "timestamp": current_time},
                     {"role": "user", "content": lovel_text, "timestamp": current_time}
@@ -132,7 +132,7 @@ class AiManager:
             messages_list.append({
                 "role": "user",
                 "content": user_text,
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             })
             # 为 API 调用准备消息（只传递 role 和 content）
             api_messages = [{"role": msg["role"], "content": msg["content"]} for msg in messages_list]
@@ -141,7 +141,7 @@ class AiManager:
             messages_list.append({
                 "role": "assistant",
                 "content": reply,
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             })
 
             # 嗯~保存最新的消息记录呢~（眨眼）

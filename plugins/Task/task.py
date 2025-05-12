@@ -1,7 +1,7 @@
 import asyncio
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from nonebot import logger, get_bot, require
 from nonebot_plugin_apscheduler import scheduler
 from plugins.AI_talk.gpt_text import lovel_text, high_white  # 导入预定义文本
@@ -26,21 +26,21 @@ class ScheduledMessage:
             messages = self.ai_manager.load_messages(chat_id)
             
             # 检测时间
-            if messages:  # 确保消息列表不为空
-                last_message = messages[-1]
-                last_timestamp = datetime.datetime.strptime(
-                        last_message["timestamp"], "%Y-%m-%d %H:%M:%S"
-                ).replace(tzinfo=datetime.timezone.utc)
-                current_time = datetime.datetime.now(datetime.timezone.utc)
-                time_diff = (current_time - last_timestamp).total_seconds()
-                if time_diff < 600:  # 小于10分钟（600秒）
-                    return False
+            # if messages:  # 确保消息列表不为空
+            #     last_message = messages[-1]
+            #     last_timestamp = datetime.strptime(
+            #             last_message["timestamp"], "%Y-%m-%d %H:%M:%S"
+            #     ).replace(tzinfo=timezone.utc)
+            #     current_time = datetime.now(timezone.utc)
+            #     time_diff = (current_time - last_timestamp).total_seconds()
+            #     if time_diff < 600:  # 小于10分钟（600秒）
+            #         return False
 
              # 添加用户消息，记录创建时间
             messages.append({
                 "role": "user",
                 "content": user_text,
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             })
             # 为 API 调用准备消息（只传递 role 和 content）
             api_messages = [{"role": msg["role"], "content": msg["content"]} for msg in messages]
@@ -49,7 +49,7 @@ class ScheduledMessage:
             messages.append({
                 "role": "assistant",
                 "content": reply,
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             })
             
             # 保存更新后的聊天记录
@@ -67,12 +67,16 @@ class ScheduledMessage:
             message = await self.generate_message(qq_number, user_text)
             if not message:
                 return False
+                logger.info(f"检查用")
+            if not message.strip():
+                logger.info(f"生成的消息为空，未发送给 {qq_number}")
+                return False
             # 发送消息
             sentences = self.ai_manager.slice_talk(message)
             for sentence in sentences:
                 await asyncio.sleep(1)
                 await bot.send_private_msg(user_id=qq_number, message=sentence)
-            logger.info(f"成功发送消息给 {qq_number}: {message}")
+            logger.info(f"成功发送消息给 {qq_number}")
 
             # 记录到 chat_history.json
             chat_entry = {
