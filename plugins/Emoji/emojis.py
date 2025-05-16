@@ -28,7 +28,7 @@ class EmojiManager:
             logger.error(f"表情包根目录不存在: {self.emoji_base_path}")
             return []
         folders = [f for f in os.listdir(self.emoji_base_path) if os.path.isdir(os.path.join(self.emoji_base_path, f))]
-        logger.error(f"folders:{folders}")
+        logger.info(f"folders:{folders}")
         logger.debug(f"找到的表情包文件夹: {folders}")
         return folders
 

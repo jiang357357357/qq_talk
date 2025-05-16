@@ -8,6 +8,14 @@ from nonebot import on_message, logger
 from plugins.AI_talk.gpt_text import lovel_text, high_white
 from nonebot.adapters.onebot.v11 import Message, MessageEvent, Bot, GroupMessageEvent, PrivateMessageEvent
 
+# 单独创造一个切分类
+from pygments import highlight
+from pygments.lexers import PythonLexer
+from pygments.formatters import HtmlFormatter
+import imgkit
+from PIL import Image, ImageDraw, ImageFont
+import uuid
+
 
 # 私聊的QQ号
 ALLOWED_PRIVATE_QQ = [1657172041,2740954024]
@@ -25,8 +33,9 @@ chat = on_message(
 class AiManager:
     def __init__(self):
         # 从环境变量中读取API密钥
-        self.api = os.getenv("GROK_KEY", "default-key-if-not-set")
-        #  key os.getenv("DEEPSEEK_API_KEY", "default-key-if-not-set")
+        #self.api = os.getenv("GROK_KEY", "default-key-if-not-set")
+        # self.api =  os.getenv("DEEPSEEK_API_KEY", "default-key-if-not-set")
+        self.api = "sk-akizqlvmmbingcziuexmqvznnwepxhtxgnewgsxfjiegjtwj"
         # 聊天目录
         self.talk_path = "./repository/talk/"
         # 确保目录存在呢
@@ -84,10 +93,11 @@ class AiManager:
 
     async def get_text(self, user_input):
         try:
-            url = "https://api.xgrok.club/v1/chat/completions"
-            # desk https://api.deepseek.com/chat/completions
+            url = "https://api.siliconflow.cn/v1/chat/completions"
+            # url = "https://api.xgrok.club/v1/chat/completions"
+            # url = "https://api.deepseek.com/chat/completions"
             payload = json.dumps({
-                "model": "grok-3",
+                "model": "deepseek-ai/DeepSeek-V3",
                 # deepseek-chat
                 "messages": user_input,
                 "temperature": 0.7
@@ -178,3 +188,135 @@ class AiManager:
                         sentence += found_separator
                 sentences.append(sentence)
         return sentences
+    
+
+
+# 单独创造一个切分类
+class SentenceSlicer:
+    def __init__(self, min_chars=10, max_chars=50, sentence_separators=['.', '!', '?', '。', '！', '？']):
+        self.min_chars = min_chars
+        self.max_chars = max_chars
+        self.sentence_separators = sentence_separators
+        self.code_block_pattern = r'```[\w]*\n([\s\S]*?)\n```'  # 改进：捕获代码内容
+        self.code_blocks = []  # 存储提取的代码块
+
+    def slice_talk(self, reply, output_dir="output"):
+        # 确保输出目录存在
+        os.makedirs(output_dir, exist_ok=True)
+        self.code_blocks = []
+
+        # 提取代码块，替换为占位符
+        def replace_code_block(match):
+            code_content = match.group(1)  # 只取```内的代码
+            self.code_blocks.append(code_content)
+            return f"__CODE_BLOCK_{len(self.code_blocks)-1}__"
+        
+        text = re.sub(self.code_block_pattern, replace_code_block, reply)
+
+        # 分句
+        sentences = []
+        escaped_separators = [re.escape(sep) for sep in self.sentence_separators]
+        pattern = '|'.join(escaped_separators)
+        
+        lines = [line.strip() for line in text.split("\n") if line.strip()]
+        for line in lines:
+            raw_sentences = re.split(f'({pattern})', line)
+            current_sentence = ""
+            
+            for i, chunk in enumerate(raw_sentences):
+                chunk = chunk.strip()
+                if not chunk:
+                    continue
+                if re.fullmatch(pattern, chunk):
+                    current_sentence += chunk
+                    continue
+                
+                current_sentence += chunk
+                while len(current_sentence) > self.max_chars:
+                    split_pos = self._find_split_pos(current_sentence)
+                    if split_pos == -1:
+                        split_pos = self.max_chars
+                    sentences.append(current_sentence[:split_pos].strip())
+                    current_sentence = current_sentence[split_pos:].strip()
+                
+                if len(current_sentence) >= self.min_chars or i == len(raw_sentences)-1:
+                    if current_sentence:
+                        sentences.append(current_sentence)
+                        current_sentence = ""
+
+            if current_sentence and len(current_sentence) >= self.min_chars:
+                sentences.append(current_sentence)
+
+        # 恢复代码块或转为图片/文件
+        final_sentences = []
+        for sentence in sentences:
+            if "__CODE_BLOCK_" in sentence:
+                for i, code in enumerate(self.code_blocks):
+                    placeholder = f"__CODE_BLOCK_{i}__"
+                    if sentence == placeholder:
+                        # 直接返回代码块（或其处理结果）
+                        sentence = f"[Code block {i} processed]"
+                    else:
+                        sentence = sentence.replace(placeholder, f"[Code block {i} processed]")
+            final_sentences.append(sentence)
+
+        # 处理代码块：生成图片和文件
+        code_results = []
+        for i, code in enumerate(self.code_blocks):
+            # 保存为文件
+            file_path = os.path.join(output_dir, f"code_block_{i}.py")
+            self.code_to_file(code, file_path)
+            
+            # 生成图片
+            image_path = os.path.join(output_dir, f"code_block_{i}.png")
+            self.code_to_image(code, image_path)
+            
+            code_results.append({"file": file_path, "image": image_path})
+
+        return final_sentences, code_results
+
+    def _find_split_pos(self, text):
+        for i in range(self.max_chars, self.min_chars-1, -1):
+            if text[i-1] in [' ', '，', '。', ',', '.', '!', '?']:
+                return i
+        return -1
+
+    def code_to_file(self, code, file_path):
+        """将代码保存为文件"""
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(code.strip())
+        return file_path
+
+    def code_to_image(self, code, image_path, theme="monokai"):
+        """将代码转为高亮图片（使用imgkit）"""
+        # 用Pygments高亮代码
+        formatter = HtmlFormatter(style=theme, full=True, cssclass="source")
+        html_code = highlight(code, PythonLexer(), formatter)
+        
+        # 用imgkit将HTML转为图片
+        imgkit.from_string(html_code, image_path, options={'quiet': ''})
+        return image_path
+
+    def code_to_image_pillow(self, code, image_path, font_path=None, font_size=14):
+        """备用方案：用Pillow直接渲染代码为图片"""
+        lines = code.split('\n')
+        max_width = max(len(line) for line in lines) * font_size // 2
+        line_height = font_size + 5
+        height = len(lines) * line_height + 20
+
+        # 创建图像
+        image = Image.new('RGB', (max_width + 20, height), color=(30, 30, 30))
+        draw = ImageDraw.Draw(image)
+        
+        # 加载字体（默认用Pillow自带，或指定路径）
+        try:
+            font = ImageFont.truetype(font_path or "arial.ttf", font_size)
+        except:
+            font = ImageFont.load_default()
+
+        # 绘制代码
+        for i, line in enumerate(lines):
+            draw.text((10, 10 + i * line_height), line, font=font, fill=(255, 255, 255))
+
+        image.save(image_path)
+        return image_path
