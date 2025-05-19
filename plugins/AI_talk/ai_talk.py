@@ -35,7 +35,7 @@ class AiManager:
         # 从环境变量中读取API密钥
         #self.api = os.getenv("GROK_KEY", "default-key-if-not-set")
         # self.api =  os.getenv("DEEPSEEK_API_KEY", "default-key-if-not-set")
-        self.api = "sk-akizqlvmmbingcziuexmqvznnwepxhtxgnewgsxfjiegjtwj"
+        self.api =  os.getenv("GJLD_API_KEY", "default-key-if-not-set")
         # 聊天目录
         self.talk_path = "./repository/talk/"
         # 确保目录存在呢
